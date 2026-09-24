@@ -1,3 +1,4 @@
+import math
 import random
 import sqlite3
 from collections.abc import Iterator
@@ -10,8 +11,12 @@ from fastapi.templating import Jinja2Templates
 
 from app.db import DEFAULT_DB_PATH, Question, connect, init_db, list_questions, record_response
 from app.privacy import randomize_forced, randomize_warner
+from app.results import all_results
 
 TEMPLATES = Jinja2Templates(directory=Path(__file__).parent / "templates")
+TEMPLATES.env.filters["pct"] = lambda x: f"{x * 100:.0f}%"
+TEMPLATES.env.globals["inf"] = math.inf
+TEMPLATES.env.filters["pos"] = lambda x: f"{x * 100:.2f}%"  # CSS position along a 0-100% axis
 ANSWERS = {"yes": True, "no": False}
 
 
@@ -88,3 +93,13 @@ async def submit_survey(
 @app.get("/thanks")
 def thanks(request: Request):
     return TEMPLATES.TemplateResponse(request, "thanks.html")
+
+
+@app.get("/api/results")
+def api_results(conn: sqlite3.Connection = Depends(get_db)):
+    return {"questions": [r.to_dict() for r in all_results(conn)]}
+
+
+@app.get("/dashboard")
+def dashboard(request: Request, conn: sqlite3.Connection = Depends(get_db)):
+    return TEMPLATES.TemplateResponse(request, "dashboard.html", {"results": all_results(conn)})

@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Noisy Survey{% endblock %}
+{% block main_class %}wide{% endblock %}
+
+{% block head %}
+<style>
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.875rem; color: var(--muted); margin: 0 0 20px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .swatch.raw { background: var(--series-raw); }
+  .swatch.corrected { background: var(--series-corrected); }
+
+  .card { border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 18px 20px; margin: 0 0 16px; }
+  .card h2 { font-size: 1.05rem; margin: 0 0 4px; }
+  .meta { font-size: 0.8rem; color: var(--muted); margin: 0 0 16px; }
+  .empty { color: var(--muted); font-size: 0.9rem; margin: 0; }
+
+  /* dot + interval plot on a shared 0-100% axis */
+  .plot { display: grid; grid-template-columns: 96px 1fr; row-gap: 6px; align-items: center; }
+  .row-label { font-size: 0.8rem; color: var(--muted); }
+  .track { position: relative; height: 32px; margin-right: 16px; }
+  .grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
+  .interval { position: absolute; top: 50%; height: 2px; margin-top: -1px; background: var(--series-corrected); }
+  .interval::before, .interval::after { content: ""; position: absolute; top: -5px; width: 2px; height: 12px; background: var(--series-corrected); }
+  .interval::before { left: 0; } .interval::after { right: 0; }
+  /* hit target (20px) bigger than the visible dot (10px) */
+  .mark { position: absolute; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; display: grid; place-items: center; outline: none; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--card); }
+  .raw .dot { background: var(--series-raw); }
+  .corrected .dot { background: var(--series-corrected); }
+  .value { position: absolute; top: 50%; transform: translateY(-50%); font-size: 0.8rem; font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 14px; }
+  .value.flip { transform: translate(-100%, -50%); padding: 0 14px 0 0; }
+  .tip { display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 2;
+         background: var(--fg); color: var(--bg); font-size: 0.75rem; line-height: 1.4; padding: 6px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none; }
+  .mark:hover .tip, .mark:focus .tip { display: block; }
+  .axis { position: relative; height: 16px; margin-right: 16px; font-size: 0.7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .axis span { position: absolute; transform: translateX(-50%); }
+
+  details { margin-top: 24px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin-top: 12px; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; }
+
+  @media (max-width: 520px) { .plot { grid-template-columns: 72px 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Results</h1>
+<p class="lede">
+  Stored answers are noisy on purpose, so the raw share of "yes" is biased towards the forced or
+  flipped answers. The corrected estimate removes that bias using the known noise rate. The
+  whiskers show its 95% confidence interval.
+</p>
+
+<div class="legend" aria-hidden="true">
+  <span><i class="swatch raw"></i>Raw: share of stored "yes"</span>
+  <span><i class="swatch corrected"></i>Corrected estimate, 95% CI</span>
+</div>
+
+{% for r in results %}
+{% set q = r.question %}
+{% set est = r.estimate %}
+<section class="card">
+  <h2>{{ q.text }}</h2>
+  <p class="meta">
+    {{ "Forced response" if q.scheme == "forced" else "Warner" }} ({{ r.mechanism }}) ·
+    ε = {{ "∞ (no guarantee)" if r.epsilon == inf else "%.2f" | format(r.epsilon) }} ·
+    n = {{ est.n if est else 0 }}
+  </p>
+
+  {% if not est %}
+    <p class="empty">No responses yet.</p>
+  {% else %}
+  <div class="plot" role="img"
+       aria-label="Raw {{ est.raw_rate | pct }}, corrected {{ est.pi_hat | pct }} (95% CI {{ est.ci_low | pct }} to {{ est.ci_high | pct }})">
+    <span class="row-label">Raw</span>
+    <div class="track">
+      {% for t in [0, 0.25, 0.5, 0.75, 1] %}<i class="grid" style="left: {{ t | pos }}"></i>{% endfor %}
+      <span class="mark raw" tabindex="0" style="left: {{ est.raw_rate | pos }}">
+        <i class="dot"></i>
+        <span class="tip">Raw: {{ r.yes_count }} of {{ est.n }} stored answers are "yes" ({{ est.raw_rate | pct }})</span>
+      </span>
+      <span class="value {{ 'flip' if est.raw_rate > 0.8 }}" style="left: {{ est.raw_rate | pos }}">{{ est.raw_rate | pct }}</span>
+    </div>
+
+    <span class="row-label">Corrected</span>
+    <div class="track">
+      {% for t in [0, 0.25, 0.5, 0.75, 1] %}<i class="grid" style="left: {{ t | pos }}"></i>{% endfor %}
+      <i class="interval" style="left: {{ est.ci_low | pos }}; width: {{ (est.ci_high - est.ci_low) | pos }}"></i>
+      <span class="mark corrected" tabindex="0" style="left: {{ est.pi_hat | pos }}">
+        <i class="dot"></i>
+        <span class="tip">Corrected: {{ est.pi_hat | pct }} · 95% CI {{ est.ci_low | pct }}–{{ est.ci_high | pct }} · SE {{ "%.3f" | format(est.se) }}</span>
+      </span>
+      <span class="value {{ 'flip' if est.ci_high > 0.8 }}"
+            style="left: {{ (est.ci_low if est.ci_high > 0.8 else est.ci_high) | pos }}">{{ est.pi_hat | pct }}</span>
+    </div>
+
+    <span></span>
+    <div class="axis" aria-hidden="true">
+      {% for t in [0, 0.25, 0.5, 0.75, 1] %}<span style="left: {{ t | pos }}">{{ t | pct }}</span>{% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% else %}
+<p class="empty">No questions yet. Run <code>python -m scripts.seed</code> to add sample questions.</p>
+{% endfor %}
+
+{% if results %}
+<details>
+  <summary>Show as table</summary>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Question</th><th>Scheme</th><th>ε</th><th>n</th><th>Raw</th><th>Corrected</th><th>95% CI</th></tr>
+      </thead>
+      <tbody>
+        {% for r in results %}{% set est = r.estimate %}
+        <tr>
+          <td>{{ r.question.text }}</td>
+          <td>{{ r.question.scheme }}</td>
+          <td>{{ "∞" if r.epsilon == inf else "%.2f" | format(r.epsilon) }}</td>
+          <td>{{ est.n if est else 0 }}</td>
+          <td>{{ est.raw_rate | pct if est else "–" }}</td>
+          <td>{{ est.pi_hat | pct if est else "–" }}</td>
+          <td>{{ (est.ci_low | pct) ~ "–" ~ (est.ci_high | pct) if est else "–" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="meta">Same data as JSON: <a href="/api/results">/api/results</a></p>
+</details>
+{% endif %}
+{% endblock %}

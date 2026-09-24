@@ -5,13 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Noisy Survey{% endblock %}</title>
   <style>
-    :root { --fg: #1c1c1e; --muted: #6b6b70; --bg: #fafaf9; --card: #fff; --line: #e4e4e2; --accent: #2f5d50; }
+    :root {
+      --fg: #1c1c1e; --muted: #6b6b70; --bg: #fafaf9; --card: #fff; --line: #e4e4e2; --accent: #2f5d50;
+      --series-corrected: #2a78d6; /* categorical slot 1, blue */
+      --series-raw: #eb6834;       /* categorical slot 2, orange */
+    }
     @media (prefers-color-scheme: dark) {
-      :root { --fg: #ececec; --muted: #a0a0a5; --bg: #161617; --card: #1f1f21; --line: #333336; --accent: #7fbfaa; }
+      :root:not([data-theme="light"]) {
+        --fg: #ececec; --muted: #a0a0a5; --bg: #161617; --card: #1f1f21; --line: #333336; --accent: #7fbfaa;
+        --series-corrected: #3987e5; --series-raw: #d95926;
+      }
+    }
+    :root[data-theme="dark"] {
+      --fg: #ececec; --muted: #a0a0a5; --bg: #161617; --card: #1f1f21; --line: #333336; --accent: #7fbfaa;
+      --series-corrected: #3987e5; --series-raw: #d95926;
     }
     * { box-sizing: border-box; }
     body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
-    main { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; }
+    nav { max-width: 760px; margin: 0 auto; padding: 16px 16px 0; display: flex; gap: 20px; font-size: 0.9rem; }
+    nav a { color: var(--muted); text-decoration: none; }
+    nav a[aria-current="page"] { color: var(--fg); font-weight: 600; }
+    main { max-width: 640px; margin: 0 auto; padding: 24px 16px 64px; }
+    main.wide { max-width: 760px; }
     h1 { font-size: 1.6rem; margin: 0 0 8px; }
     .lede { color: var(--muted); margin: 0 0 24px; }
     fieldset { border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 16px 18px; margin: 0 0 16px; }
@@ -21,8 +36,14 @@
     button, .button { font: inherit; background: var(--accent); color: var(--bg); border: 0; border-radius: 8px; padding: 10px 20px; cursor: pointer; text-decoration: none; display: inline-block; }
     code { font-size: 0.9em; }
   </style>
+  {% block head %}{% endblock %}
 </head>
 <body>
-  <main>{% block content %}{% endblock %}</main>
+  {% set page = request.url.path %}
+  <nav>
+    <a href="/survey" {% if page == "/survey" %}aria-current="page"{% endif %}>Survey</a>
+    <a href="/dashboard" {% if page == "/dashboard" %}aria-current="page"{% endif %}>Dashboard</a>
+  </nav>
+  <main class="{% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
 </body>
 </html>
