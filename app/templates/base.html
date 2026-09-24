@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Noisy Survey{% endblock %}</title>
+  <style>
+    :root { --fg: #1c1c1e; --muted: #6b6b70; --bg: #fafaf9; --card: #fff; --line: #e4e4e2; --accent: #2f5d50; }
+    @media (prefers-color-scheme: dark) {
+      :root { --fg: #ececec; --muted: #a0a0a5; --bg: #161617; --card: #1f1f21; --line: #333336; --accent: #7fbfaa; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+    main { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; }
+    h1 { font-size: 1.6rem; margin: 0 0 8px; }
+    .lede { color: var(--muted); margin: 0 0 24px; }
+    fieldset { border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 16px 18px; margin: 0 0 16px; }
+    legend { font-weight: 600; padding: 0 4px; }
+    .choices { display: flex; gap: 20px; margin: 8px 0 10px; }
+    .protect { font-size: 0.875rem; color: var(--muted); margin: 0; }
+    button, .button { font: inherit; background: var(--accent); color: var(--bg); border: 0; border-radius: 8px; padding: 10px 20px; cursor: pointer; text-decoration: none; display: inline-block; }
+    code { font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

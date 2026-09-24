@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Anonymous survey</h1>
+<p class="lede">
+  Your answers are scrambled at random <strong>before</strong> they are saved, so no stored
+  answer says anything certain about you. We only keep the scrambled answer, with no time,
+  IP address or cookie attached. You can skip any question.
+</p>
+
+{% if not questions %}
+  <p>No questions yet. Run <code>python -m scripts.seed</code> to add sample questions.</p>
+{% else %}
+<form method="post" action="/survey">
+  {% for q in questions %}
+  <fieldset>
+    <legend>{{ q.text }}</legend>
+    <div class="choices">
+      <label><input type="radio" name="q_{{ q.id }}" value="yes"> Yes</label>
+      <label><input type="radio" name="q_{{ q.id }}" value="no"> No</label>
+    </div>
+    <p class="protect">
+      {% if q.scheme == "forced" %}
+        How this is protected: we keep your real answer {{ (q.p_truth * 100) | round | int }}% of the time.
+        Otherwise we record "yes" ({{ (q.p_yes * 100) | round | int }}%) or "no"
+        ({{ (q.p_no * 100) | round | int }}%) no matter what you picked.
+      {% else %}
+        How this is protected: we keep your real answer {{ (q.warner_p * 100) | round | int }}% of the time
+        and save the opposite answer the other {{ ((1 - q.warner_p) * 100) | round | int }}%.
+      {% endif %}
+    </p>
+  </fieldset>
+  {% endfor %}
+  <button type="submit">Submit anonymously</button>
+</form>
+{% endif %}
+{% endblock %}
